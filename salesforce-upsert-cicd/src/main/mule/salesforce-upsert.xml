@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:secure-properties="http://www.mulesoft.org/schema/mule/secure-properties"
+	xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mule/salesforce/current/mule-salesforce.xsd
+http://www.mulesoft.org/schema/mule/secure-properties http://www.mulesoft.org/schema/mule/secure-properties/current/mule-secure-properties.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<salesforce:sfdc-config name="Salesforce_Config" doc:name="Salesforce Config" doc:id="1db31699-78a4-4e02-964b-536b5cadb557" >
+		<salesforce:basic-connection username="${salesforce.username}" password="${secure::salesforce.password}" securityToken="${secure::salesforce.token}" url="${salesforce.url}"/>
+	</salesforce:sfdc-config>
+	
+	<global-property doc:name="Global Property" doc:id="486ccb2e-6811-430b-a153-b526842cc905" name="env" value="local" />
+	<configuration-properties doc:name="Configuration properties" doc:id="c262786e-3c7c-4ba2-80cf-9f161aaa15c3" file="local.properties" />
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="6474c3bf-5889-452f-8ac7-eb689d258482" >
+		<http:listener-connection host="0.0.0.0" port="8081" />
+	</http:listener-config>
+<secure-properties:config name="Secure_Properties_Config" doc:name="Secure Properties Config" doc:id="47e7b990-0a69-4002-9204-e1a7c9cb4b3b" file="local-secured.properties" key="Mayo7882*#*Redu2009*#*" >
+		<secure-properties:encrypt algorithm="Blowfish" />
+	</secure-properties:config>
+	<flow name="salesforce-upsertFlow" doc:id="54439314-8185-419e-9d8d-154b9bc069b3" >
+		<http:listener doc:name="Listener" doc:id="eb3dc9e1-1ae7-4a70-898f-5cb6d53d6fae" config-ref="HTTP_Listener_config" path="/upsert" allowedMethods="PUT">
+			<ee:repeatable-file-store-stream inMemorySize="1024" />
+		</http:listener>
+		<ee:transform doc:name="Transform Message" doc:id="170a84c4-f48c-48ee-b484-dc4053926fd1" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+
+	payload map (items,index) ->
+	{
+		FirstName: items.firstName,
+		LastName: items.lastName,
+		Email: items.email,
+		MobilePhone: items.mobile
+	}
+]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<salesforce:upsert doc:name="Upsert" doc:id="8995a9b1-956d-483e-bd88-23cd4aa2d9b0" config-ref="Salesforce_Config" objectType="Contact" externalIdFieldName="Email"/>
+		<ee:transform doc:name="Transform Message" doc:id="8895731f-5fca-4ea6-a34c-5d88972fc313" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+</mule>
